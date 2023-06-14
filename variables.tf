@@ -4,20 +4,20 @@ variable "name_prefix" {
   nullable    = false
 }
 
-variable "vpc_cidr_block" {
+variable "cidr_block" {
   description = "VPC CIDR"
   type        = string
   nullable    = false
 }
 
-variable "additional_public_subnet_tags" {
-  description = "Additional tags for public subnets"
+variable "public_subnet_tags" {
+  description = "Public subnets tags"
   type        = map(string)
   default     = null
 }
 
-variable "additional_private_subnet_tags" {
-  description = "Additional tags for private subnets"
+variable "private_subnet_tags" {
+  description = "Private subnets tags"
   type        = map(string)
   default     = null
 }
