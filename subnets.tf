@@ -54,8 +54,8 @@ resource "aws_subnet" "private" {
   }, var.private_subnet_tags)
 }
 
-resource "aws_eip" "nat_gateway" {
-  count = var.enable_nat_gateway ? 1 : 0
+resource "aws_eip" "this" {
+  for_each = var.enable_nat_gateway ? toset(data.aws_availability_zones.this.names) : []
 
   tags = {
     Name = "${var.name_prefix}_nat_gateway"
@@ -63,10 +63,10 @@ resource "aws_eip" "nat_gateway" {
 }
 
 resource "aws_nat_gateway" "this" {
-  count = var.enable_nat_gateway ? 1 : 0
+  for_each = var.enable_nat_gateway ? toset(data.aws_availability_zones.this.names) : []
 
-  allocation_id = aws_eip.nat_gateway[count.index].id
-  subnet_id     = aws_subnet.public[data.aws_availability_zones.this.names[0]].id
+  allocation_id = aws_eip.this[each.value].id
+  subnet_id     = aws_subnet.public[each.value].id
 
   tags = {
     Name = var.name_prefix
@@ -76,15 +76,18 @@ resource "aws_nat_gateway" "this" {
 }
 
 resource "aws_route_table" "private" {
+  for_each = toset(data.aws_availability_zones.this.names)
+
   vpc_id = aws_vpc.this.id
 
   dynamic "route" {
     for_each = var.enable_nat_gateway ? [
       {
         cidr_block     = "0.0.0.0/0"
-        nat_gateway_id = aws_nat_gateway.this[0].id
+        nat_gateway_id = aws_nat_gateway.this[each.value].id
       }
     ] : []
+
     content {
       cidr_block     = route.value["cidr_block"]
       nat_gateway_id = route.value["nat_gateway_id"]
@@ -100,5 +103,5 @@ resource "aws_route_table_association" "private" {
   for_each = toset(data.aws_availability_zones.this.names)
 
   subnet_id      = aws_subnet.private[each.value].id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[each.value].id
 }
