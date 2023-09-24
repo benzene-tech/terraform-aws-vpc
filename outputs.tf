@@ -14,14 +14,14 @@ output "id" {
 
 output "public_subnets" {
   description = "List of public subnets"
-  value       = [for subnet in aws_subnet.public : subnet.id]
+  value       = aws_subnet.public[*].id
 
   depends_on = [aws_route_table_association.public]
 }
 
 output "private_subnets" {
   description = "List of private subnets"
-  value       = [for subnet in aws_subnet.private : subnet.id]
+  value       = aws_subnet.private[*].id
 
   depends_on = [aws_route_table_association.private]
 }

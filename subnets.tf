@@ -1,11 +1,11 @@
 # Public
 resource "aws_subnet" "public" {
-  for_each = toset(data.aws_availability_zones.this.names)
+  count = length(local.public_cidr_subnets)
 
   vpc_id                  = aws_vpc.this.id
-  cidr_block              = local.public_cidr_subnets[each.value]
+  cidr_block              = local.public_cidr_subnets[count.index]
+  availability_zone       = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
   map_public_ip_on_launch = "true"
-  availability_zone       = each.value
 
   tags = merge({
     Name = "${var.name_prefix}_public"
@@ -34,20 +34,20 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  for_each = toset(data.aws_availability_zones.this.names)
+  count = length(local.public_cidr_subnets)
 
-  subnet_id      = aws_subnet.public[each.value].id
+  subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
 
 
 # Private
 resource "aws_subnet" "private" {
-  for_each = toset(data.aws_availability_zones.this.names)
+  count = length(local.private_cidr_subnets)
 
   vpc_id            = aws_vpc.this.id
-  cidr_block        = local.private_cidr_subnets[each.value]
-  availability_zone = each.value
+  cidr_block        = local.private_cidr_subnets[count.index]
+  availability_zone = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
 
   tags = merge({
     Name = "${var.name_prefix}_private"
@@ -55,7 +55,7 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_eip" "this" {
-  for_each = var.enable_nat_gateway ? toset(data.aws_availability_zones.this.names) : []
+  count = var.enable_nat_gateway ? local.availability_zones_count : 0
 
   tags = {
     Name = "${var.name_prefix}_nat_gateway"
@@ -63,10 +63,10 @@ resource "aws_eip" "this" {
 }
 
 resource "aws_nat_gateway" "this" {
-  for_each = var.enable_nat_gateway ? toset(data.aws_availability_zones.this.names) : []
+  count = var.enable_nat_gateway ? local.availability_zones_count : 0
 
-  allocation_id = aws_eip.this[each.value].id
-  subnet_id     = aws_subnet.public[each.value].id
+  allocation_id = aws_eip.this[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = {
     Name = var.name_prefix
@@ -76,7 +76,7 @@ resource "aws_nat_gateway" "this" {
 }
 
 resource "aws_route_table" "private" {
-  for_each = toset(data.aws_availability_zones.this.names)
+  count = local.availability_zones_count
 
   vpc_id = aws_vpc.this.id
 
@@ -84,7 +84,7 @@ resource "aws_route_table" "private" {
     for_each = var.enable_nat_gateway ? [
       {
         cidr_block     = "0.0.0.0/0"
-        nat_gateway_id = aws_nat_gateway.this[each.value].id
+        nat_gateway_id = aws_nat_gateway.this[count.index].id
       }
     ] : []
 
@@ -100,8 +100,8 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route_table_association" "private" {
-  for_each = toset(data.aws_availability_zones.this.names)
+  count = length(local.private_cidr_subnets)
 
-  subnet_id      = aws_subnet.private[each.value].id
-  route_table_id = aws_route_table.private[each.value].id
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index % local.availability_zones_count].id
 }

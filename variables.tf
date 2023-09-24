@@ -10,6 +10,17 @@ variable "cidr_block" {
   nullable    = false
 }
 
+variable "subnet_count" {
+  description = "Minimum number of each type of subnet (public, private)"
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.subnet_count != null ? signum(var.subnet_count) == 1 && var.subnet_count % 1 == 0 : true
+    error_message = "Subnet count should be a whole number"
+  }
+}
+
 variable "public_subnet_tags" {
   description = "Public subnets tags"
   type        = map(string)
