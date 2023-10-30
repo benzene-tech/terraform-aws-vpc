@@ -3,7 +3,7 @@ resource "aws_vpc" "this" {
   instance_tenancy     = "default"
   enable_dns_hostnames = "true"
 
-  tags = {
+  tags = merge(var.tags, {
     Name = var.name_prefix
-  }
+  })
 }
