@@ -1,5 +1,5 @@
-variable "name_prefix" {
-  description = "Prefix to name resources and tags"
+variable "name" {
+  description = "Name resources or add as tag"
   type        = string
   nullable    = false
 }
@@ -10,27 +10,25 @@ variable "cidr_block" {
   nullable    = false
 }
 
-variable "subnet_count" {
-  description = "Minimum number of each type of subnet (public, private)"
+variable "availability_zones_count" {
+  description = "Minimum number of availability zones to consider for creating each type of subnets (public, private)"
   type        = number
   default     = null
 
   validation {
-    condition     = var.subnet_count != null ? signum(var.subnet_count) == 1 && var.subnet_count % 1 == 0 : true
-    error_message = "Subnet count should be a whole number"
+    condition     = var.availability_zones_count != null ? signum(var.availability_zones_count) == 1 && var.availability_zones_count % 1 == 0 : true
+    error_message = "Availability zones count should be a whole number"
   }
 }
 
-variable "public_subnet_tags" {
-  description = "Public subnets tags"
-  type        = map(string)
-  default     = null
-}
-
-variable "private_subnet_tags" {
-  description = "Private subnets tags"
-  type        = map(string)
-  default     = null
+variable "subnet_tags" {
+  description = "Subnet tags"
+  type = object({
+    public  = optional(map(string), {})
+    private = optional(map(string), {})
+  })
+  default  = {}
+  nullable = false
 }
 
 variable "enable_nat_gateway" {
@@ -38,4 +36,10 @@ variable "enable_nat_gateway" {
   type        = bool
   default     = true
   nullable    = false
+}
+
+variable "tags" {
+  description = "Tags to be assigned to the resources"
+  type        = map(string)
+  default     = null
 }

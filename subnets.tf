@@ -7,17 +7,17 @@ resource "aws_subnet" "public" {
   availability_zone       = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
   map_public_ip_on_launch = "true"
 
-  tags = merge({
-    Name = "${var.name_prefix}_public"
-  }, var.public_subnet_tags)
+  tags = merge(var.tags, var.subnet_tags.public, {
+    Name = var.name
+  })
 }
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
 
-  tags = {
-    Name = var.name_prefix
-  }
+  tags = merge(var.tags, {
+    Name = var.name
+  })
 }
 
 resource "aws_route_table" "public" {
@@ -28,9 +28,9 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.this.id
   }
 
-  tags = {
-    Name = "${var.name_prefix}_public"
-  }
+  tags = merge(var.tags, {
+    Name = var.name
+  })
 }
 
 resource "aws_route_table_association" "public" {
@@ -49,17 +49,17 @@ resource "aws_subnet" "private" {
   cidr_block        = local.private_cidr_subnets[count.index]
   availability_zone = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
 
-  tags = merge({
-    Name = "${var.name_prefix}_private"
-  }, var.private_subnet_tags)
+  tags = merge(var.tags, var.subnet_tags.private, {
+    Name = var.name
+  })
 }
 
 resource "aws_eip" "this" {
   count = var.enable_nat_gateway ? local.availability_zones_count : 0
 
-  tags = {
-    Name = "${var.name_prefix}_nat_gateway"
-  }
+  tags = merge(var.tags, {
+    Name = var.name
+  })
 }
 
 resource "aws_nat_gateway" "this" {
@@ -68,9 +68,9 @@ resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.this[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
-  tags = {
-    Name = var.name_prefix
-  }
+  tags = merge(var.tags, {
+    Name = var.name
+  })
 
   depends_on = [aws_internet_gateway.this]
 }
@@ -81,22 +81,17 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
 
   dynamic "route" {
-    for_each = var.enable_nat_gateway ? [
-      {
-        cidr_block     = "0.0.0.0/0"
-        nat_gateway_id = aws_nat_gateway.this[count.index].id
-      }
-    ] : []
+    for_each = var.enable_nat_gateway ? [aws_nat_gateway.this[count.index].id] : []
 
     content {
-      cidr_block     = route.value["cidr_block"]
-      nat_gateway_id = route.value["nat_gateway_id"]
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = route.value
     }
   }
 
-  tags = {
-    Name = "${var.name_prefix}_private"
-  }
+  tags = merge(var.tags, {
+    Name = var.name
+  })
 }
 
 resource "aws_route_table_association" "private" {
