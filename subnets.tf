@@ -7,7 +7,7 @@ resource "aws_subnet" "public" {
   availability_zone       = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
   map_public_ip_on_launch = "true"
 
-  tags = merge(var.tags, var.public_subnet_tags, {
+  tags = merge(var.tags, var.subnet_tags.public, {
     Name = var.name_prefix
   })
 }
@@ -26,6 +26,16 @@ resource "aws_route_table" "public" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.this.id
+  }
+
+  dynamic "route" {
+    for_each = lookup(var.routes, "public", [])
+
+    content {
+      cidr_block           = route.value.destination
+      gateway_id           = route.value.gateway_id
+      network_interface_id = route.value.network_interface_id
+    }
   }
 
   tags = merge(var.tags, {
@@ -49,7 +59,7 @@ resource "aws_subnet" "private" {
   cidr_block        = local.private_cidr_subnets[count.index]
   availability_zone = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
 
-  tags = merge(var.tags, var.private_subnet_tags, {
+  tags = merge(var.tags, var.subnet_tags.private, {
     Name = var.name_prefix
   })
 }
@@ -81,16 +91,21 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
 
   dynamic "route" {
-    for_each = var.enable_nat_gateway ? [
-      {
-        cidr_block     = "0.0.0.0/0"
-        nat_gateway_id = aws_nat_gateway.this[count.index].id
-      }
-    ] : []
+    for_each = var.enable_nat_gateway ? [aws_nat_gateway.this[count.index].id] : []
 
     content {
-      cidr_block     = route.value["cidr_block"]
-      nat_gateway_id = route.value["nat_gateway_id"]
+      cidr_block = "0.0.0.0/0"
+      gateway_id = route.value
+    }
+  }
+
+  dynamic "route" {
+    for_each = lookup(var.routes, "private", [])
+
+    content {
+      cidr_block           = route.value.destination
+      gateway_id           = route.value.gateway_id
+      network_interface_id = route.value.network_interface_id
     }
   }
 

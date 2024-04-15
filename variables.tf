@@ -21,16 +21,14 @@ variable "availability_zones_count" {
   }
 }
 
-variable "public_subnet_tags" {
-  description = "Additional public subnets tags"
-  type        = map(string)
-  default     = null
-}
-
-variable "private_subnet_tags" {
-  description = "Additional private subnets tags"
-  type        = map(string)
-  default     = null
+variable "subnet_tags" {
+  description = "Subnet tags"
+  type = object({
+    public  = optional(map(string), {})
+    private = optional(map(string), {})
+  })
+  default  = {}
+  nullable = false
 }
 
 variable "enable_nat_gateway" {
@@ -38,6 +36,24 @@ variable "enable_nat_gateway" {
   type        = bool
   default     = true
   nullable    = false
+}
+
+variable "routes" {
+  description = "Routes of route tables"
+  type = object({
+    public = optional(list(object({
+      destination          = string
+      gateway_id           = optional(string, null)
+      network_interface_id = optional(string, null)
+    })), [])
+    private = optional(list(object({
+      destination          = string
+      gateway_id           = optional(string, null)
+      network_interface_id = optional(string, null)
+    })), [])
+  })
+  default  = {}
+  nullable = false
 }
 
 variable "tags" {
