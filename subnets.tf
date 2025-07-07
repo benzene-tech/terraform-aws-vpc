@@ -8,7 +8,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = "true"
 
   tags = merge(var.tags, var.subnet_tags.public, {
-    Name = var.name
+    Name = "${var.name}-public-${data.aws_availability_zones.this.names[count.index % local.availability_zones_count]}"
   })
 }
 
@@ -50,7 +50,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
 
   tags = merge(var.tags, var.subnet_tags.private, {
-    Name = var.name
+    Name = "${var.name}-private-${data.aws_availability_zones.this.names[count.index % local.availability_zones_count]}"
   })
 }
 
