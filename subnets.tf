@@ -1,14 +1,103 @@
+# Private
+resource "aws_subnet" "private" {
+  for_each = toset(data.aws_availability_zones.this.names)
+
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = local.subnet_cidrs.private[each.key]
+  availability_zone = each.value
+
+  tags = merge(var.tags, var.subnet_tags.private, {
+    Name = "${var.name}-private-${each.key}"
+  })
+}
+
+resource "aws_eip" "this" {
+  for_each = var.enable_nat_gateway ? aws_subnet.private : {}
+
+  tags = merge(var.tags, {
+    Name = var.name
+  })
+}
+
+resource "aws_nat_gateway" "this" {
+  for_each = var.enable_nat_gateway ? aws_subnet.private : {}
+
+  allocation_id = aws_eip.this[each.key].id
+  subnet_id     = each.value.id
+
+  tags = merge(var.tags, {
+    Name = var.name
+  })
+
+  depends_on = [aws_internet_gateway.this]
+}
+
+resource "aws_route_table" "private" {
+  for_each = aws_subnet.private
+
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, {
+    Name = var.name
+  })
+}
+
+resource "aws_route" "private" {
+  for_each = var.enable_nat_gateway ? aws_route_table.private : {}
+
+  route_table_id         = each.value.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[each.key].id
+}
+
+resource "aws_route_table_association" "private" {
+  for_each = aws_subnet.private
+
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private[each.key].id
+}
+
+# Protected
+resource "aws_subnet" "protected" {
+  for_each = toset(data.aws_availability_zones.this.names)
+
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = local.subnet_cidrs.protected[each.key]
+  availability_zone = each.value
+
+  tags = merge(var.tags, var.subnet_tags.protected, {
+    Name = "${var.name}-protected-${each.key}"
+  })
+}
+
+resource "aws_route_table" "protected" {
+  for_each = aws_subnet.protected
+
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, {
+    Name = var.name
+  })
+}
+
+resource "aws_route_table_association" "protected" {
+  for_each = aws_subnet.protected
+
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private[each.key].id
+}
+
 # Public
 resource "aws_subnet" "public" {
-  count = length(local.public_cidr_subnets)
+  for_each = toset(data.aws_availability_zones.this.names)
 
   vpc_id                  = aws_vpc.this.id
-  cidr_block              = local.public_cidr_subnets[count.index]
-  availability_zone       = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
+  cidr_block              = local.subnet_cidrs.public[each.key]
+  availability_zone       = each.value
   map_public_ip_on_launch = "true"
 
   tags = merge(var.tags, var.subnet_tags.public, {
-    Name = "${var.name}-public-${data.aws_availability_zones.this.names[count.index % local.availability_zones_count]}"
+    Name = "${var.name}-public-${each.key}"
   })
 }
 
@@ -23,80 +112,20 @@ resource "aws_internet_gateway" "this" {
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.this.id
-  }
-
   tags = merge(var.tags, {
     Name = var.name
   })
+}
+
+resource "aws_route" "public" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.this.id
 }
 
 resource "aws_route_table_association" "public" {
-  count = length(local.public_cidr_subnets)
+  for_each = aws_subnet.public
 
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
-}
-
-
-# Private
-resource "aws_subnet" "private" {
-  count = length(local.private_cidr_subnets)
-
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = local.private_cidr_subnets[count.index]
-  availability_zone = data.aws_availability_zones.this.names[count.index % local.availability_zones_count]
-
-  tags = merge(var.tags, var.subnet_tags.private, {
-    Name = "${var.name}-private-${data.aws_availability_zones.this.names[count.index % local.availability_zones_count]}"
-  })
-}
-
-resource "aws_eip" "this" {
-  count = var.enable_nat_gateway ? local.availability_zones_count : 0
-
-  tags = merge(var.tags, {
-    Name = var.name
-  })
-}
-
-resource "aws_nat_gateway" "this" {
-  count = var.enable_nat_gateway ? local.availability_zones_count : 0
-
-  allocation_id = aws_eip.this[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
-
-  tags = merge(var.tags, {
-    Name = var.name
-  })
-
-  depends_on = [aws_internet_gateway.this]
-}
-
-resource "aws_route_table" "private" {
-  count = local.availability_zones_count
-
-  vpc_id = aws_vpc.this.id
-
-  dynamic "route" {
-    for_each = var.enable_nat_gateway ? [aws_nat_gateway.this[count.index].id] : []
-
-    content {
-      cidr_block     = "0.0.0.0/0"
-      nat_gateway_id = route.value
-    }
-  }
-
-  tags = merge(var.tags, {
-    Name = var.name
-  })
-}
-
-resource "aws_route_table_association" "private" {
-  count = length(local.private_cidr_subnets)
-
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index % local.availability_zones_count].id
 }

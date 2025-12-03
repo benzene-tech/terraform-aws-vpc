@@ -10,22 +10,12 @@ variable "cidr_block" {
   nullable    = false
 }
 
-variable "availability_zones_count" {
-  description = "Minimum number of availability zones to consider for creating each type of subnets (public, private)"
-  type        = number
-  default     = null
-
-  validation {
-    condition     = var.availability_zones_count != null ? signum(var.availability_zones_count) == 1 && var.availability_zones_count % 1 == 0 : true
-    error_message = "Availability zones count should be a whole number"
-  }
-}
-
 variable "subnet_tags" {
   description = "Subnet tags"
   type = object({
-    public  = optional(map(string), {})
-    private = optional(map(string), {})
+    private   = optional(map(string), {})
+    protected = optional(map(string), {})
+    public    = optional(map(string), {})
   })
   default  = {}
   nullable = false

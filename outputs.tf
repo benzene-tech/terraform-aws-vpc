@@ -12,18 +12,25 @@ output "id" {
   depends_on = [aws_route_table_association.public, aws_route_table_association.private]
 }
 
-output "public_subnets" {
-  description = "List of public subnets"
-  value       = aws_subnet.public[*].id
-
-  depends_on = [aws_route_table_association.public]
-}
-
 output "private_subnets" {
   description = "List of private subnets"
-  value       = aws_subnet.private[*].id
+  value       = [for subnet in aws_subnet.private : subnet.id]
 
   depends_on = [aws_route_table_association.private]
+}
+
+output "protected_subnets" {
+  description = "List of protected subnets"
+  value       = [for subnet in aws_subnet.protected : subnet.id]
+
+  depends_on = [aws_route_table_association.protected]
+}
+
+output "public_subnets" {
+  description = "List of public subnets"
+  value       = [for subnet in aws_subnet.public : subnet.id]
+
+  depends_on = [aws_route_table_association.public]
 }
 
 output "nat_gateway_enabled" {
