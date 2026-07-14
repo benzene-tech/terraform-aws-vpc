@@ -11,19 +11,9 @@ resource "aws_subnet" "private" {
   })
 }
 
-resource "aws_eip" "this" {
-  for_each = var.enable_nat_gateway ? aws_subnet.private : {}
-
-  tags = merge(var.tags, {
-    Name = var.name
-  })
-}
-
 resource "aws_nat_gateway" "this" {
-  for_each = var.enable_nat_gateway ? aws_subnet.private : {}
-
-  allocation_id = aws_eip.this[each.key].id
-  subnet_id     = each.value.id
+  vpc_id            = aws_vpc.this.id
+  availability_mode = "regional"
 
   tags = merge(var.tags, {
     Name = var.name
@@ -33,8 +23,6 @@ resource "aws_nat_gateway" "this" {
 }
 
 resource "aws_route_table" "private" {
-  for_each = aws_subnet.private
-
   vpc_id = aws_vpc.this.id
 
   tags = merge(var.tags, {
@@ -43,18 +31,16 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route" "private" {
-  for_each = var.enable_nat_gateway ? aws_route_table.private : {}
-
-  route_table_id         = each.value.id
+  route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.this[each.key].id
+  nat_gateway_id         = aws_nat_gateway.this.id
 }
 
 resource "aws_route_table_association" "private" {
   for_each = aws_subnet.private
 
   subnet_id      = each.value.id
-  route_table_id = aws_route_table.private[each.key].id
+  route_table_id = aws_route_table.private.id
 }
 
 # Protected
@@ -71,8 +57,6 @@ resource "aws_subnet" "protected" {
 }
 
 resource "aws_route_table" "protected" {
-  for_each = aws_subnet.protected
-
   vpc_id = aws_vpc.this.id
 
   tags = merge(var.tags, {
@@ -84,7 +68,7 @@ resource "aws_route_table_association" "protected" {
   for_each = aws_subnet.protected
 
   subnet_id      = each.value.id
-  route_table_id = aws_route_table.private[each.key].id
+  route_table_id = aws_route_table.protected.id
 }
 
 # Public

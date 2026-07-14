@@ -21,13 +21,6 @@ variable "subnet_tags" {
   nullable = false
 }
 
-variable "enable_nat_gateway" {
-  description = "Flag to enable or disable NAT gateway"
-  type        = bool
-  default     = true
-  nullable    = false
-}
-
 variable "tags" {
   description = "Tags to be assigned to the resources"
   type        = map(string)
